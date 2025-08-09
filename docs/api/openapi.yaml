@@ -1,0 +1,522 @@
+openapi: 3.0.3
+info:
+  title: MKWW MCP Server API
+  description: |
+    # MKWW MCP Server API
+    
+    This is the API documentation for the MKWW MCP (Master Control Program) Server.
+    The MCP Server acts as the central orchestration hub for the MKWorldWide ecosystem.
+    
+    ## Authentication
+    
+    The API uses JWT (JSON Web Tokens) for authentication. Include the token in the `Authorization` header:
+    
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## WebSocket API
+    
+    The MCP Server provides a WebSocket endpoint for real-time communication. Connect to:
+    
+    ```
+    ws://<host>:<port>/ws
+    ```
+    
+    ### WebSocket Message Format
+    
+    All WebSocket messages are JSON objects with the following structure:
+    
+    ```json
+    {
+      "type": "message-type",
+      "data": {}
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: MKWW Support
+    email: support@mkww.io
+  license:
+    name: Proprietary
+    url: https://mkww.io/terms
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development server
+  - url: https://api.mkww.io/v1
+    description: Production server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+        details:
+          type: object
+    
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+        isArchived:
+          type: boolean
+        metadata:
+          type: object
+          additionalProperties: true
+    
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system, function]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+        parentMessageId:
+          type: string
+          format: uuid
+          nullable: true
+    
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        result:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+          nullable: true
+    
+    SystemStatus:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        isSystemHealthy:
+          type: boolean
+        unhealthyServices:
+          type: array
+          items:
+            type: string
+        services:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              isHealthy:
+                type: boolean
+              lastCheck:
+                type: string
+                format: date-time
+              error:
+                type: string
+                nullable: true
+              metrics:
+                type: object
+                additionalProperties: true
+        circuitBreakers:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              isOpen:
+                type: boolean
+              failureCount:
+                type: integer
+              lastFailureTime:
+                type: string
+                format: date-time
+                nullable: true
+              successCount:
+                type: integer
+              lastSuccessTime:
+                type: string
+                format: date-time
+                nullable: true
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the current health status of the MCP server and its services
+      tags:
+        - System
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+  
+  /conversations:
+    get:
+      summary: List conversations
+      description: Retrieve a list of conversations
+      tags:
+        - Conversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Maximum number of conversations to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of conversations to skip
+        - in: query
+          name: archived
+          schema:
+            type: boolean
+            default: false
+          description: Include archived conversations
+      responses:
+        '200':
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+    
+    post:
+      summary: Create a new conversation
+      description: Create a new conversation with the given title and optional metadata
+      tags:
+        - Conversations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Conversation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+  
+  /conversations/{conversationId}:
+    get:
+      summary: Get a conversation
+      description: Retrieve a specific conversation by ID
+      tags:
+        - Conversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the conversation to retrieve
+      responses:
+        '200':
+          description: Conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+    
+    put:
+      summary: Update a conversation
+      description: Update a conversation's title or metadata
+      tags:
+        - Conversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the conversation to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Conversation updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+    
+    delete:
+      summary: Archive a conversation
+      description: Archive a conversation (soft delete)
+      tags:
+        - Conversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the conversation to archive
+      responses:
+        '204':
+          description: Conversation archived successfully
+  
+  /conversations/{conversationId}/messages:
+    get:
+      summary: Get messages in a conversation
+      description: Retrieve messages from a specific conversation
+      tags:
+        - Messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the conversation
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 1000
+          description: Maximum number of messages to return
+        - in: query
+          name: before
+          schema:
+            type: string
+            format: date-time
+          description: Return only messages before this timestamp
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+    
+    post:
+      summary: Send a message
+      description: Send a new message to a conversation
+      tags:
+        - Messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+                - content
+              properties:
+                role:
+                  type: string
+                  enum: [user, assistant, system, function]
+                content:
+                  type: string
+                  minLength: 1
+                metadata:
+                  type: object
+                  additionalProperties: true
+                parentMessageId:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '201':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  
+  /tasks:
+    get:
+      summary: List tasks
+      description: Retrieve a list of tasks
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, failed]
+          description: Filter tasks by status
+        - in: query
+          name: type
+          schema:
+            type: string
+          description: Filter tasks by type
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 1000
+          description: Maximum number of tasks to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of tasks to skip
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+  
+  /tasks/{taskId}:
+    get:
+      summary: Get a task
+      description: Retrieve a specific task by ID
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the task to retrieve
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+# WebSocket API
+tags:
+  - name: WebSocket
+    description: Real-time WebSocket API for event-driven communication
+  - name: Conversations
+    description: Manage conversations and messages
+  - name: Messages
+    description: Send and receive messages
+  - name: Tasks
+    description: Manage background tasks
+  - name: System
+    description: System operations and monitoring

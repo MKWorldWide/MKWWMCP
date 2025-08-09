@@ -1,0 +1,69 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - 'alert.rules.yml'
+
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape Node Exporter
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Scrape cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Scrape Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: /scrape
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: redis-exporter:9121
+
+  # Scrape PostgreSQL Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Scrape MCP Server metrics
+  - job_name: 'mcp-server'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:3000']  # For local development
+        labels:
+          env: 'development'
+    # For production, you might have something like:
+    # - targets: ['mcp-server:3000']
+    #   labels:
+    #     env: 'production'
+
+  # Scrape MCP Server process metrics
+  - job_name: 'mcp-process'
+    static_configs:
+      - targets: ['host.docker.internal:9091']  # Node process metrics
+        labels:
+          env: 'development'
+    # For production:
+    # - targets: ['mcp-server:9091']
+    #   labels:
+    #     env: 'production'

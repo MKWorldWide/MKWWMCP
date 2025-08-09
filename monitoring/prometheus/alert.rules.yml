@@ -1,0 +1,152 @@
+groups:
+- name: MCP Server Alerts
+  rules:
+    # High CPU usage
+    - alert: HighCPUUsage
+      expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage on {{ $labels.instance }}"
+        description: "CPU usage is {{ $value }}%"
+
+    # High memory usage
+    - alert: HighMemoryUsage
+      expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage on {{ $labels.instance }}"
+        description: "Memory usage is {{ $value | humanize }}%"
+
+    # High disk usage
+    - alert: HighDiskUsage
+      expr: (node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_avail_bytes{mountpoint="/"}) / node_filesystem_size_bytes{mountpoint="/"} * 100 > 80
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High disk usage on {{ $labels.instance }}"
+        description: "Disk usage is {{ $value | humanize }}%"
+
+    # MCP Server down
+    - alert: MCPServerDown
+      expr: up{job="mcp-server"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "MCP Server is down (instance {{ $labels.instance }})"
+        description: "MCP Server has been down for more than 1 minute"
+
+    # High HTTP error rate
+    - alert: HighHttpErrorRate
+      expr: sum(rate(mcp_http_request_duration_milliseconds_count{status_code=~"5.."}[5m])) by (instance, status_code) / sum(rate(mcp_http_request_duration_milliseconds_count[5m])) by (instance) * 100 > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High HTTP error rate on {{ $labels.instance }}"
+        description: "{{ $value | humanize }}% of requests are failing with {{ $labels.status_code }}"
+
+    # High request latency
+    - alert: HighRequestLatency
+      expr: histogram_quantile(0.99, sum(rate(mcp_http_request_duration_milliseconds_bucket[5m])) by (le, instance)) > 1000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High request latency on {{ $labels.instance }}"
+        description: "99th percentile request latency is {{ $value | humanize }}ms"
+
+    # High WebSocket connections
+    - alert: HighWebSocketConnections
+      expr: mcp_websocket_connections{status="active"} > 1000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High number of WebSocket connections on {{ $labels.instance }}"
+        description: "{{ $value }} active WebSocket connections"
+
+    # High task queue
+    - alert: HighTaskQueue
+      expr: mcp_tasks_total{status="pending"} > 1000
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High number of pending tasks on {{ $labels.instance }}"
+        description: "{{ $value }} tasks in queue"
+
+    # Redis down
+    - alert: RedisDown
+      expr: redis_up == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis is down (instance {{ $labels.instance }})"
+        description: "Redis has been down for more than 1 minute"
+
+    # PostgreSQL down
+    - alert: PostgresDown
+      expr: pg_up == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "PostgreSQL is down (instance {{ $labels.instance }})"
+        description: "PostgreSQL has been down for more than 1 minute"
+
+    # High database query duration
+    - alert: HighDatabaseQueryDuration
+      expr: rate(mcp_database_query_duration_seconds_sum[5m]) / rate(mcp_database_query_duration_seconds_count[5m]) > 0.5
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High database query duration on {{ $labels.instance }}"
+        description: "Average query duration is {{ $value | humanize }} seconds"
+
+    # High error rate in logs
+    - alert: HighErrorLogRate
+      expr: rate(mcp_log_errors_total[5m]) > 5
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High error rate in logs on {{ $labels.instance }}"
+        description: "{{ $value | humanize }} errors per second"
+
+    # High process restart rate
+    - alert: HighProcessRestartRate
+      expr: changes(process_start_time_seconds[1h]) > 3
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High process restart rate on {{ $labels.instance }}"
+        description: "Process restarted {{ $value | humanize }} times in the last hour"
+
+    # High memory usage in MCP process
+    - alert: HighMCPMemoryUsage
+      expr: process_resident_memory_bytes{job="mcp-process"} / 1024 / 1024 > 1024
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage in MCP process on {{ $labels.instance }}"
+        description: "MCP process is using {{ $value | humanize }} MB of memory"
+
+    # High event loop lag
+    - alert: HighEventLoopLag
+      expr: nodejs_eventloop_lag_seconds > 0.5
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High event loop lag on {{ $labels.instance }}"
+        description: "Event loop lag is {{ $value | humanize }} seconds"
