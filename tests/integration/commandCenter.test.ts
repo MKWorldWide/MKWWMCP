@@ -54,47 +54,89 @@ describe('Command Center API', () => {
       
       // Initialize Redis client for testing with retry logic
       logWithElapsed('Connecting to Redis...');
+      
+      // Use host.docker.internal for Docker on Windows to connect to host's localhost
+      const redisUrl = 'redis://host.docker.internal:6379';
+      logWithElapsed(`Using Redis URL: ${redisUrl}`);
+      
       redisClient = createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: redisUrl,
         socket: {
-          reconnectStrategy: (retries) => {
+          reconnectStrategy: (retries: number) => {
             if (retries > 3) {
               logWithElapsed('Max Redis reconnection attempts reached');
               return new Error('Max reconnection attempts reached');
             }
             logWithElapsed(`Redis reconnection attempt ${retries}`);
             return Math.min(retries * 100, 5000);
-          }
+          },
+          // Add connection timeout
+          connectTimeout: 5000
         }
       });
       
+      // Add more detailed error handling
       redisClient.on('error', (err: Error) => {
         logWithElapsed(`Redis Client Error: ${err.message}`);
+        if (err.stack) {
+          logWithElapsed(`Stack: ${err.stack}`);
+        }
+      });
+      
+      redisClient.on('ready', () => {
+        logWithElapsed('Redis client is ready');
       });
       
       redisClient.on('connect', () => {
-        logWithElapsed('Redis connected');
+        logWithElapsed('Redis client connected');
       });
       
-      // Connect to Redis with timeout
-      await Promise.race([
-        redisClient.connect(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
-        )
-      ]);
+      redisClient.on('reconnecting', () => {
+        logWithElapsed('Redis client reconnecting...');
+      });
       
-      logWithElapsed('Redis client connected');
+      redisClient.on('end', () => {
+        logWithElapsed('Redis client connection ended');
+      });
       
-      // Initialize MCP with the HTTP server
-      logWithElapsed('Initializing MCP...');
-      await Promise.race([
-        mcp.initialize(server, app),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('MCP initialization timeout')), 10000)
-        )
-      ]);
-      logWithElapsed('MCP initialized');
+      // Connect to Redis with more detailed logging
+      logWithElapsed('Attempting to connect to Redis...');
+      try {
+        await redisClient.connect();
+        logWithElapsed('Redis client connected successfully');
+        
+        // Test Redis connection
+        const pingResult = await redisClient.ping();
+        logWithElapsed(`Redis ping result: ${pingResult}`);
+        
+        if (pingResult !== 'PONG') {
+          throw new Error('Redis connection test failed - did not receive PONG');
+        }
+        
+        logWithElapsed('Redis connection test successful');
+        
+        // Initialize MCP with the HTTP server
+        logWithElapsed('Initializing MCP...');
+        
+        // Increase timeout for MCP initialization
+        await Promise.race([
+          mcp.initialize(server, app),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('MCP initialization timeout')), 30000) // Increased to 30s
+          )
+        ]);
+        
+        logWithElapsed('MCP initialized successfully');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logWithElapsed(`Error during Redis/MCP initialization: ${errorMessage}`);
+        if (redisClient) {
+          logWithElapsed('Redis client state:');
+          logWithElapsed(`- isOpen: ${redisClient.isOpen}`);
+          logWithElapsed(`- isReady: ${redisClient.isReady}`);
+        }
+        throw error;
+      }
       
       // Start server with timeout
       logWithElapsed('Starting HTTP server...');

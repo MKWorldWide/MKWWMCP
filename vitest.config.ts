@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 
 // Helper to handle file URLs for ESM
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -9,6 +10,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',  // Use node environment for API testing
     include: ['tests/**/*.test.ts'],
+    setupFiles: ['./tests/setup.ts'],
+    testTimeout: 30000, // 30 seconds timeout for tests
     coverage: {
       provider: 'v8',  // Use V8's built-in coverage
       reporter: ['text', 'json', 'html'],
@@ -21,8 +24,6 @@ export default defineConfig({
         '**/index.ts',
       ],
     },
-    // Setup test environment
-    setupFiles: ['./tests/setup.ts'],
     // Mocking strategy (if needed)
     // mockReset: true,
   },

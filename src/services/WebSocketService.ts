@@ -1,5 +1,6 @@
 import { WebSocket, WebSocketServer } from 'ws';
-import { createClient, RedisClientType } from 'redis';
+import { createClient } from 'redis';
+import type { RedisClientType } from 'redis';
 import { logger } from '../utils/logger';
 
 export type ServiceType = 'bot' | 'service' | 'client';

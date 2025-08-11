@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger.js';
 import { WebSocketService } from './WebSocketService.js';
-import { RedisClientType, createClient } from 'redis';
+import { createClient } from 'redis';
+import type { RedisClientType } from 'redis';
 import { v4 as uuidv4 } from 'uuid';
 
 type MessageRole = 'user' | 'assistant' | 'system' | 'function';

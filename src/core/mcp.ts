@@ -1,7 +1,8 @@
 import { Server } from 'http';
 import { Queue } from 'bullmq';
 import { createClient } from 'redis';
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express from 'express';
+import type { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { initDb } from '../models/store.js';
 import { RepositoryService } from '../services/RepositoryService.js';

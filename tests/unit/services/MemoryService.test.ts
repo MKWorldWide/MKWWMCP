@@ -1,5 +1,5 @@
 import { MemoryService } from '../../../src/services/MemoryService.js';
-import { TestRedis, mockWebSocketClient } from '../test-utils.js';
+import { TestRedis, mockWebSocketClient } from '../../test-utils.js';
 
 describe('MemoryService', () => {
   let memoryService: MemoryService;

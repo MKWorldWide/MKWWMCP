@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { verifyToken, JwtPayload } from '../utils/jwt.js';
+import type { Request, Response, NextFunction } from 'express';
+import { verifyToken } from '../utils/jwt.js';
+import type { JwtPayload } from '../utils/jwt.js';
 import { config } from '../config/auth.js';
 
 type UserRole = 'admin' | 'operator' | 'service';
@@ -15,14 +16,22 @@ declare global {
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader) {
     return res.status(401).json({ 
       success: false, 
       error: 'Authentication required' 
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const tokenParts = authHeader.split(' ');
+  if (tokenParts.length !== 2) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid token format. Use: Bearer <token>'
+    });
+  }
+
+  const token = tokenParts[1];
   
   try {
     const decoded = verifyToken(token);

@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, promises as fs } from 'fs';
 import { join } from 'path';
 import { logger } from '../utils/logger.js';
 import { webSocketService } from './WebSocketService.js';
@@ -51,13 +51,27 @@ export class RepositoryService {
   }
 
   public async initialize(): Promise<void> {
-    logger.info('Initializing Repository Service');
-    
-    // Start periodic scanning
-    this.startPeriodicScan(Number(process.env.REPO_SCAN_INTERVAL_MS) || 5 * 60 * 1000);
-    
-    // Initial scan
-    await this.scanAllRepositories();
+    try {
+      logger.info('Initializing Repository Service');
+      
+      // Ensure base directory exists
+      this.ensureBaseDirExists();
+      
+      // Start periodic scanning (don't wait for it)
+      const scanInterval = Number(process.env.REPO_SCAN_INTERVAL_MS) || 5 * 60 * 1000;
+      logger.info(`Starting repository scanner with interval: ${scanInterval}ms`);
+      this.startPeriodicScan(scanInterval);
+      
+      // Initial scan (don't block initialization)
+      this.scanAllRepositories().catch(err => {
+        logger.error('Initial repository scan failed:', err);
+      });
+      
+      logger.info('Repository Service initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize Repository Service:', error);
+      throw error; // Re-throw to be handled by the caller
+    }
   }
 
   public async addRepository(repoUrl: string, branch = 'main'): Promise<Repository> {
@@ -188,25 +202,77 @@ export class RepositoryService {
 
   public async scanAllRepositories(): Promise<void> {
     if (this.isScanning) {
-      logger.warn('Scan already in progress');
+      logger.warn('Repository scan already in progress');
       return;
     }
 
     this.isScanning = true;
-    logger.info('Starting scan of all repositories');
+    const startTime = Date.now();
+    logger.info('Starting repository scan...');
 
     try {
-      for (const repo of this.repositories.values()) {
+      // Ensure base directory exists
+      if (!existsSync(this.baseDir)) {
+        logger.warn(`Repository directory does not exist: ${this.baseDir}`);
+        return;
+      }
+
+      const repoDirs = await fs.readdir(this.baseDir, { withFileTypes: true });
+      logger.debug(`Found ${repoDirs.length} items in repository directory`);
+      
+      let scannedCount = 0;
+      let errorCount = 0;
+      
+      for (const dirent of repoDirs) {
+        if (!dirent.isDirectory()) {
+          logger.debug(`Skipping non-directory: ${dirent.name}`);
+          continue;
+        }
+        
+        const repoName = dirent.name;
+        const repoPath = join(this.baseDir, repoName);
+        
         try {
+          logger.debug(`Scanning repository: ${repoName}`);
+          
+          // Get or create repository entry
+          let repo = this.repositories.get(repoName);
+          if (!repo) {
+            repo = {
+              name: repoName,
+              url: `file://${repoPath}`, // Local path as URL for now
+              localPath: repoPath,
+              branch: 'main',
+              status: 'ready',
+              lastUpdated: null,
+              metadata: {
+                hasVccManifest: false,
+                hasUnityProject: false,
+                hasPackageJson: false
+              }
+            };
+            this.repositories.set(repoName, repo);
+          }
+          
           await this.scanRepository(repo);
-          this.broadcastRepoUpdate(repo);
+          scannedCount++;
+          
         } catch (error) {
-          logger.error(`Error scanning repository ${repo.name}:`, error);
+          errorCount++;
+          logger.error(`Error scanning repository ${repoName}:`, error);
+          // Continue with next repository even if one fails
         }
       }
+      
+      const duration = Date.now() - startTime;
+      logger.info(`Repository scan completed: ${scannedCount} repositories scanned, ${errorCount} errors (${duration}ms)`);
+      
+    } catch (error) {
+      logger.error('Fatal error during repository scan:', error);
+      throw error;
+      
     } finally {
       this.isScanning = false;
-      logger.info('Completed scan of all repositories');
     }
   }
 
@@ -222,21 +288,38 @@ export class RepositoryService {
     }
   }
 
-  private startPeriodicScan(intervalMs: number): void {
-    if (this.scanInterval) {
-      clearInterval(this.scanInterval);
-    }
-
-    this.scanInterval = setInterval(async () => {
-      try {
-        await this.updateAllRepositories();
-        await this.scanAllRepositories();
-      } catch (error) {
-        logger.error('Error during periodic repository scan:', error);
+  public startPeriodicScan(intervalMs: number): void {
+    try {
+      logger.info(`Configuring repository scanner with interval: ${intervalMs}ms`);
+      
+      // Clear any existing interval
+      if (this.scanInterval) {
+        logger.debug('Clearing existing repository scan interval');
+        clearInterval(this.scanInterval);
+        this.scanInterval = null;
       }
-    }, intervalMs);
-
-    logger.info(`Started periodic repository scan every ${intervalMs / 1000} seconds`);
+      
+      // Set up new interval with error handling
+      this.scanInterval = setInterval(async () => {
+        if (this.isScanning) {
+          logger.debug('Skipping repository scan - previous scan still in progress');
+          return;
+        }
+        
+        try {
+          logger.debug('Starting scheduled repository scan');
+          await this.scanAllRepositories();
+          logger.debug('Completed scheduled repository scan');
+        } catch (error) {
+          logger.error('Error during scheduled repository scan:', error);
+        }
+      }, intervalMs);
+      
+      logger.info(`Repository scanner configured with ${intervalMs}ms interval`);
+    } catch (error) {
+      logger.error('Failed to start repository scanner:', error);
+      throw error;
+    }
   }
 
   private extractRepoName(repoUrl: string): string {
