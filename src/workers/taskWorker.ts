@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { connection } from '../queue.js';
+import { connection, redisOptions } from '../queue.js';
 import { execStep } from '../services/executor.js';
 import { updateTask, appendRunLog } from '../models/store.js';
 
@@ -14,6 +14,13 @@ export function startTaskWorker() {
       await updateTask(taskId, { status: ok ? 'done' : 'error' });
       await appendRunLog(runId, note);
     },
-    { connection }
+    { 
+      connection: {
+        ...redisOptions,
+        // Ensure BullMQ specific options are properly set
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+      } 
+    }
   );
 }

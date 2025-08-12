@@ -6,9 +6,13 @@ import { logger } from './utils/logger.js';
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6380/0';
 
 // Create Redis connection with retry strategy
-const connection = new Redis.Redis(redisUrl, {
+const redisOptions = {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
+  // Required by BullMQ
+  commandTimeout: 10000,
+  // Add password if needed
+  // password: process.env.REDIS_PASSWORD,
   retryStrategy: (times: number): number => {
     const delay = Math.min(times * 1000, 5000);
     logger.warn(`Redis connection attempt ${times}, retrying in ${delay}ms`);
@@ -18,7 +22,9 @@ const connection = new Redis.Redis(redisUrl, {
     logger.error('Redis connection error:', err);
     return true; // Reconnect on all errors
   }
-});
+};
+
+const connection = new Redis.Redis(redisUrl, redisOptions);
 
 // Handle connection events
 connection.on('connect', () => {
@@ -38,4 +44,4 @@ const taskQueue = new Queue('mcp-tasks', {
   }
 });
 
-export { connection, taskQueue };
+export { connection, taskQueue, redisOptions };
