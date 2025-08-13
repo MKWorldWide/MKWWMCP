@@ -6,7 +6,7 @@ import os from 'node:os';
 import { promisify } from 'node:util';
 
 const exec = promisify(_exec);
-const { readFile, writeFile, mkdir, readFileSync, writeFileSync, mkdirSync } = fs;
+const { readFile, writeFile, readFileSync, writeFileSync, mkdirSync } = fs;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,8 +19,8 @@ const OUT_DIR = path.join(__dirname, "out");
 const CACHE_DIR = path.join(__dirname, ".cache");
 
 // Ensure directories exist
-await mkdir(OUT_DIR, { recursive: true });
-await mkdir(CACHE_DIR, { recursive: true });
+mkdirSync(OUT_DIR, { recursive: true });
+mkdirSync(CACHE_DIR, { recursive: true });
 
 // ======================
 // GitHub API Rate Limiting
