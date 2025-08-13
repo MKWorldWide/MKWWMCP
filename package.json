@@ -16,7 +16,7 @@
     "check:port": "node -e \"require('net').createServer().listen(process.env.PORT||3001,'0.0.0.0',()=>{console.log('PORT_OK');process.exit(0);}).on('error',e=>{console.error('PORT_BUSY');process.exit(1)})\"",
     "mcp:list-tools": "node mcp-driver.js tools/list",
     "mcp:mkww-inventory": "node mcp-driver.js call search_repositories '{\"q\":\"org:MKWorldWide\",\"per_page\":100}' > out/mkww.repos.json && node mcp-driver.js format out/mkww.repos.json out/mkww.inventory.md",
-    "mcp:eskaye-inventory": "node mcp-driver.js call search_repositories '{\"q\":\"org:EsKaye\",\"per_page\":100}' > out/eskaye.repos.json && node mcp-driver.js format out/eskaye.repos.json out/eskaye.inventory.md",
+    "mcp:eskaye-inventory": "node mcp-driver.js call search_repositories \"{\\\"q\\\":\\\"org:EsKaye\\\",\\\"per_page\\\":100}\" > out/eskaye.repos.json && node mcp-driver.js format out/eskaye.repos.json out/eskaye.inventory.md",
     "mcp:mkww-discover": "mkdir -p out && node mcp-driver.js call search_repositories '{\"q\":\"org:MKWorldWide\",\"per_page\":100}' > out/mkww.repos.json",
     "mcp:format-inventory": "node mcp-driver.js format out/mkww.repos.json out/mkww.inventory.md"
   },
@@ -36,7 +36,7 @@
     "https": "^1.0.0",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.7.0",
     "pg": "^8.11.5",
     "redis": "^5.8.0",
     "swagger-jsdoc": "^6.2.8",
