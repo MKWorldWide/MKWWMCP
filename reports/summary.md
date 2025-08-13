@@ -1,5 +1,10 @@
 # EsKaye CI/CD Sweep - Progress Summary
 
+---
+
+Automation log:
+- 2025-08-13: Enabled MCP gateway for cross-repo automation; local updates and logs will be maintained in this repo via Cursor. Cross-repo actions will use MCP.
+
 **Generated**: 2025-08-12  
 **Status**: 🚀 **IN PROGRESS**  
 **Progress**: 8/22 repositories completed (36.4%)
