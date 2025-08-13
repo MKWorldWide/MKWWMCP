@@ -740,3 +740,6 @@
 {"level":"\u001b[32minfo\u001b[39m","message":"\t\u001b[32mHeartbeat Service initialized\u001b[39m","timestamp":"2025-08-12 04:56:47"}
 {"level":"\u001b[32minfo\u001b[39m","message":"\t\u001b[32mInitializing VCC Service\u001b[39m","timestamp":"2025-08-12 04:56:47"}
 {"level":"\u001b[31merror\u001b[39m","message":"\t\u001b[31mFailed to initialize VCC. Make sure VCC is installed and in your PATH.\u001b[39m","timestamp":"2025-08-12 04:56:47"}
+{"level":"\u001b[32minfo\u001b[39m","message":"\t\u001b[32mCreated repositories directory at C:\\Users\\sunny\\Saved Games\\MKWWMCP\\repos\u001b[39m","timestamp":"2025-08-12 23:00:36"}
+{"address":"127.0.0.1","code":"ECONNREFUSED","errno":-4078,"level":"\u001b[31merror\u001b[39m","message":"\t\u001b[31mRedis connection error: connect ECONNREFUSED 127.0.0.1:6380\u001b[39m","port":6380,"stack":"Error: connect ECONNREFUSED 127.0.0.1:6380\n    at __node_internal_captureLargerStackTrace (node:internal/errors:490:5)\n    at __node_internal_exceptionWithHostPort (node:internal/errors:668:12)\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1570:16)","syscall":"connect","timestamp":"2025-08-12 23:00:43"}
+{"level":"\u001b[33mwarn\u001b[39m","message":"\t\u001b[33mRedis connection attempt 1, retrying in 1000ms\u001b[39m","timestamp":"2025-08-12 23:00:43"}

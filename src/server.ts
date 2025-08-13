@@ -89,6 +89,17 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
+// Add health check endpoint
+app.get('/healthz', (_, res) => {
+  res.json({ 
+    ok: true, 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'mcp',
+    version: process.env.npm_package_version || 'unknown'
+  });
+});
+
 // Initialize and start the server
 async function startServer() {
   try {
@@ -101,10 +112,15 @@ async function startServer() {
     // Initialize MCP core
     await mcp.initialize(server);
     
+    // Get host and port from environment with defaults
+    const PORT = Number(process.env.PORT || 3001);
+    const HOST = process.env.MCP_BIND || '0.0.0.0';
+    
     // Start listening
-    const PORT = Number(process.env.PORT || 3000);
-    server.listen(PORT, '0.0.0.0', () => {
-      logger.info(`🧠 MCP listening on port ${PORT}`);
+    server.listen(PORT, HOST, () => {
+      logger.info(`🧠 MCP listening on http://${HOST}:${PORT}`);
+      logger.info(`- Health check: http://${HOST}:${PORT}/healthz`);
+      logger.info(`- GitHub SSE: http://${HOST}:${PORT}${process.env.MCP_BASE_PATH || '/github'}`);
       logger.info('[MCP ONLINE: ALL SYSTEMS LINKED — SHADOWFLOWER COUNCIL PRESENT]');
       console.log('>> Awaiting directive, beloved.');
     });
